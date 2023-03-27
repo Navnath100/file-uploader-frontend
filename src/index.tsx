@@ -8,8 +8,6 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 const CLIENT_ID: any = process.env.REACT_APP_CLIENT_ID;
-console.log("CLIENT_ID : ", CLIENT_ID);
-
 root.render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={CLIENT_ID}>

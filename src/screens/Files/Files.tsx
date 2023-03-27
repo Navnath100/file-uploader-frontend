@@ -8,16 +8,16 @@ import './files.css'
 
 export default function Files() {
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const [token, setToken] = useState<any>(null)
     const [files, setFiles] = useState<Array<any>>(Array);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) navigate('/')
+        const jwtToken = localStorage.getItem('token');
+        if (!jwtToken) navigate('/')
         else {
-            const decoded: any = jwt_decode(token);
-            setUser(decoded)
-            getFiles(decoded.email)
+            const decoded: any = jwt_decode(jwtToken);
+            setToken(jwtToken)
+            getFiles(jwtToken)
         }
     }, [])
 
@@ -35,8 +35,6 @@ export default function Files() {
 
     function handleUpload(selectedFiles: any) {
         const file = selectedFiles.target.files[0];
-        console.log("selected file", file);
-
         try {
             const parallelUploads3 = new Upload({
                 client: s3Client,
@@ -50,7 +48,6 @@ export default function Files() {
 
             parallelUploads3.done().then((res: any) => {
                 const body = {
-                    email: user.email,
                     key: res.Key,
                     type: file.name.split(".")[1],
                     fileName: file.name
@@ -59,7 +56,7 @@ export default function Files() {
 
                 fetch('http://localhost:4000/file', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', authorization: token },
                     body: JSON.stringify(body)
                 }).then((response) => response.json())
                     .then((responseJson) => {
@@ -93,15 +90,21 @@ export default function Files() {
         }
     }
 
-    async function getFiles(email = user?.email) {
-        fetch('http://localhost:4000/file?email=' + email, {
+    async function getFiles(jwtToken = token) {
+        fetch('http://localhost:4000/file', {
             method: 'Get',
-            headers: { 'Content-Type': 'application/json' },
-        }).then((response) => response.json())
-            .then((responseJson) => {
+            headers: { 'Content-Type': 'application/json', authorization: jwtToken },
+        }).then(async (response) => {
+            const responseJson: any = await response.json();
+            if (response.ok) {
                 console.log("responseJson : ", responseJson);
                 setFiles(responseJson)
-            })
+            }
+            else if (response.status === 403) {
+                handleLogout()
+            }
+
+        })
             .catch((error) => {
                 console.error(error);
             });
