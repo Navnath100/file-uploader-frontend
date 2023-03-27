@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload } from "@aws-sdk/lib-storage";
-import { S3Client, S3, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { saveAs } from "file-saver";
 import jwt_decode from "jwt-decode";
 import './files.css'
@@ -10,6 +10,7 @@ export default function Files() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
     const [files, setFiles] = useState<Array<any>>(Array);
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) navigate('/')
@@ -24,13 +25,21 @@ export default function Files() {
         localStorage.removeItem('token')
         navigate('/')
     }
+
+    const credentials: any = {
+        accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID,
+        secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY
+    }
+    const bucketName = process.env.REACT_APP_S3_BUCKET_NAME
+    const s3Client = new S3Client({ region: 'ap-south-1', credentials });
+
     function handleUpload(selectedFiles: any) {
         const file = selectedFiles.target.files[0];
         console.log("selected file", file);
 
         try {
             const parallelUploads3 = new Upload({
-                client: new S3Client({ region: 'ap-south-1', credentials: { accessKeyId: 'AKIAYXWB4ZWHO5GYBZE5', secretAccessKey: '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' } }),
+                client: s3Client,
                 params: { Bucket: 'krayo-assignment', Key: file.name, Body: file },
                 leavePartsOnError: false, // optional manually handle dropped parts
             });
@@ -69,21 +78,16 @@ export default function Files() {
         }
 
     }
-    const credentials: any = {
-        accessKeyId: process.env.ACCESS_KEY_ID,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY
-    }
-    const s3Client = new S3Client({ region: 'ap-south-1', credentials });
 
     async function downloadFile(key = "") {
         try {
             const command = new GetObjectCommand({
-                Bucket: "krayo-assignment",
-                Key: key,
+                Bucket: bucketName,
+                Key: key
             });
             const response: any = await s3Client.send(command);
-            const file = new Blob([response.Body]);
-            saveAs(file, key);
+            const byteArray = await response.Body.transformToByteArray();
+            saveAs(new Blob([byteArray]), key);
         } catch (error) {
             console.log(error);
         }
@@ -96,7 +100,6 @@ export default function Files() {
         }).then((response) => response.json())
             .then((responseJson) => {
                 console.log("responseJson : ", responseJson);
-
                 setFiles(responseJson)
             })
             .catch((error) => {
@@ -115,18 +118,20 @@ export default function Files() {
                     </a>
                 </span>
             </div>
-            {files.map((file, index) => (
-                <div key={index}>
-                    <div className="file-item">
-                        <div className="file-name">{file.fileName}</div>
-                        <a onClick={() => {
-                            downloadFile(file.key)
-                        }} className="download-link">
-                            <span className="download-icon">Download</span>
-                        </a>
+            {
+                files.map((file, index) => (
+                    <div key={index}>
+                        <div className="file-item">
+                            <div className="file-name">{file.fileName}</div>
+                            <a onClick={() => {
+                                downloadFile(file.key)
+                            }} className="download-link">
+                                <span className="download-icon">Download</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))
+            }
         </div>
     )
 }
