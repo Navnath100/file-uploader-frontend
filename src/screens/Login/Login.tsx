@@ -19,7 +19,7 @@ export default function Login() {
     return (
         <div className='container'>
             <div className="login-form">
-                <h2>Login Form</h2>
+                <h2>Login</h2>
                 <GoogleLogin
                     onSuccess={handleLogin}
                     onError={() => {
